@@ -3947,7 +3947,7 @@ class assign {
      * @return string
      */
     protected function view_grading_table() {
-        global $USER, $CFG, $SESSION;
+        global $USER, $CFG, $SESSION, $COURSE;
 
         // Include grading options form.
         require_once($CFG->dirroot . '/mod/assign/gradingoptionsform.php');
@@ -3966,6 +3966,11 @@ class assign {
             $downloadurl = '/mod/assign/view.php?id=' . $cmid . '&action=downloadall';
             $links[$downloadurl] = get_string('downloadall', 'assign');
         }
+        //=
+        $campus = optional_param('campus',null,PARAM_RAW);
+        $downmark2url = '/local/cohort_users/markingexport.php?campus=' . $campus . '&cmm=' . $cmid . '&cid=' . $COURSE->id . '&action=downloadmarking2nd';
+        $links[$downmark2url] = get_string('exportmarking', 'local_cohort_users');
+        //==
         if ($this->is_blind_marking() &&
                 has_capability('mod/assign:revealidentities', $this->get_context())) {
             $revealidentitiesurl = '/mod/assign/view.php?id=' . $cmid . '&action=revealidentities';
@@ -4080,11 +4085,46 @@ class assign {
                                     get_string('grading', 'assign'),
                                     $actionformtext);
         $o .= $this->get_renderer()->render($header);
-
         $currenturl = $CFG->wwwroot .
                       '/mod/assign/view.php?id=' .
                       $this->get_course_module()->id .
                       '&action=grading';
+
+        //=
+        global $DB;
+        $sql_campusfield = 'SELECT id, name, param1 FROM {user_info_field} WHERE shortname="campus"';
+
+        if ($arr_campusfield = $DB->get_record_sql($sql_campusfield)) {
+
+            $campusfieldid = $arr_campusfield->id;
+            $param1 = $arr_campusfield->param1;
+
+            $param1_pieces = explode("\n", $param1);
+
+        }
+
+
+        $o .= '<br/>Select Campus <SELECT class="custom-select urlselect" id="selcampus" name="campus">
+        <OPTION value="">SELECT</OPTION>';
+        foreach($param1_pieces as $key_campusdata) {
+        if ($key_campusdata!="ALL CAMPUSES") {
+            $o .= '<OPTION value="' . $key_campusdata . '" ';
+            if ($campus == "$key_campusdata") {
+                $o .= " selected";
+            }
+            $o .= ' >' . $key_campusdata . '</OPTION>';
+        }
+        }
+        $o .= '</SELECT>
+
+                    <script type="text/javascript">
+                    var urlmenu = document.getElementById( "selcampus" );
+                    urlmenu.onchange = function() {
+                    //window.open( this.options[ this.selectedIndex ].value, "_self");
+                    window.open( "' . $CFG->wwwroot . '/mod/assign/view.php?id=' . $_GET["id"] . '&action=grading&campus=" + this.options[ this.selectedIndex ].value, "_self");
+                };
+                </script>';
+        //==
 
         $o .= groups_print_activity_menu($this->get_course_module(), $currenturl, true);
 
@@ -4133,6 +4173,7 @@ class assign {
                                       $gradingoptionsform,
                                       'M.mod_assign.init_grading_options');
         $o .= $this->get_renderer()->render($assignform);
+
         return $o;
     }
 
@@ -4180,7 +4221,7 @@ class assign {
      * @return string
      */
     protected function view_grading_page() {
-        global $CFG;
+        global $CFG, $COURSE;
 
         $o = '';
         // Need submit permission to submit an assignment.
@@ -4191,7 +4232,6 @@ class assign {
 
         // Only load this if it is.
         $o .= $this->view_grading_table();
-
         $o .= $this->view_footer();
 
         \mod_assign\event\grading_table_viewed::create_from_assign($this)->trigger();
@@ -6803,9 +6843,19 @@ class assign {
             $submission = $this->get_user_submission($userid, true);
         }
 
+        $cm = $this->get_course_module();       // CUSTOM CODE ADDED
+
         if ($this->new_submission_empty($data)) {
             $notices[] = get_string('submissionempty', 'mod_assign');
-            return false;
+
+            // CUSTOM CODE STARTS HERE
+            if (!has_capability('mod/assign:editothersubmission', context_module::instance($cm->id))) {
+                return false;
+            } else {
+                $submission->status = ASSIGN_SUBMISSION_STATUS_NEW;
+                $this->update_submission($submission, $userid, true, $instance->teamsubmission);
+            }
+            // CUSTOM CODE ENDS HERE
         }
 
         // Check that no one has modified the submission since we started looking at it.
@@ -6847,7 +6897,16 @@ class assign {
             if ($allempty) {
                 $notices[] = get_string('submissionempty', 'mod_assign');
             }
-            return false;
+
+            // CUSTOM CODE STARTS HERE
+            if (!has_capability('mod/assign:editothersubmission', context_module::instance($cm->id))) {
+                return false;
+            } else {
+                $submission->status = ASSIGN_SUBMISSION_STATUS_NEW;
+                $this->update_submission($submission, $userid, true, $instance->teamsubmission);
+            }
+            // CUSTOM CODE ENDS HERE
+
         }
 
         $this->update_submission($submission, $userid, true, $instance->teamsubmission);

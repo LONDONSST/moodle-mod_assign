@@ -264,6 +264,7 @@ class mod_assign_renderer extends plugin_renderer_base {
      * @return string
      */
     public function render_assign_grading_summary(assign_grading_summary $summary) {
+
         // Create a table for the data.
         $o = '';
         $o .= $this->output->container_start('gradingsummary');
@@ -333,6 +334,40 @@ class mod_assign_renderer extends plugin_renderer_base {
         // All done - write the table.
         $o .= html_writer::table($t);
         $o .= $this->output->box_end();
+
+        //== collapsing 3 columns by default
+        global $DB, $USER;
+
+        $uprefarray = array('collapse' =>
+            array (
+                'timemarked' => true,
+                'picture' => true,
+                'email' => true,
+            ),
+            'sortby' =>
+                array (
+                ),
+            'i_first' => '',
+            'i_last' => '',
+            'textsort' =>
+                array (
+                ),);
+
+        $uprefrec = new stdClass();
+        $uprefrec->userid = $USER->id;
+        $uprefrec->name = 'flextable_mod_assign_grading';
+        $uprefrec->value = json_encode($uprefarray);
+
+        $dbparams = array('userid'=>$USER->id, 'name'=>'flextable_mod_assign_grading');
+        if ($arr_userpref = $DB->get_record('user_preferences', $dbparams)) {
+            $uprefrec->id = $arr_userpref->id;
+            $DB->update_record('user_preferences', $uprefrec, $bulk = false);
+        } else {
+            $DB->insert_record('user_preferences', $uprefrec);
+        }
+
+        //==e
+
 
         // Link to the grading page.
         $o .= '<center>';

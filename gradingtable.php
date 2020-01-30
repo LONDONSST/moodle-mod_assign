@@ -143,6 +143,7 @@ class assign_grading_table extends table_sql implements renderable {
 
         $fields = user_picture::fields('u', $extrauserfields) . ', ';
         $fields .= 'u.id as userid, ';
+        $fields .= 'u.username as username, ';
         $fields .= 's.status as status, ';
         $fields .= 's.id as submissionid, ';
         $fields .= 's.timecreated as firstsubmission, ';
@@ -383,15 +384,19 @@ class assign_grading_table extends table_sql implements renderable {
                 }
             }
 
-            foreach ($extrauserfields as $extrafield) {
-                $columns[] = $extrafield;
-                $headers[] = get_user_field_name($extrafield);
-            }
+//            foreach ($extrauserfields as $extrafield) {
+//                $columns[] = $extrafield;
+//                $headers[] = get_user_field_name($extrafield);
+//            }
         } else {
             // Record ID.
             $columns[] = 'recordid';
             $headers[] = get_string('recordid', 'assign');
         }
+
+        // Awarding Body ID.
+        $columns[] = 'username';
+        $headers[] = get_string('username');
 
         // Awarding Body ID.
         $columns[] = 'awardingbodyid';
